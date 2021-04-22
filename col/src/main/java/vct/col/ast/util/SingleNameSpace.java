@@ -29,13 +29,23 @@ public class SingleNameSpace implements Map<String, VariableInfo> {
   public VariableInfo lookup(String name){
     return map.get(name);
   }
+
   public void add(String name, VariableInfo def){
+    if(name.equals("hist") && def.kind == NameExpressionKind.Argument){
+      int i =1;
+    }
+
+    //Duplicate names inside a smaller scope is not allowed. For further reading see shadow variables.
     if(map.containsKey(name)){
       var original = map.get(name);
-      if(original.kind == NameExpressionKind.Field && def.kind == NameExpressionKind.Argument){
-        def.reference.getOrigin().report("","Duplicate declaration found");
-        map.get(name).reference.getOrigin().report("","Original declaration");
-        Fail("");
+      //A duplicate name is allowed if the variable in the widder scope is a field.
+      if(!(original.kind == NameExpressionKind.Field && (def.kind == NameExpressionKind.Argument || def.kind == NameExpressionKind.Local))){
+        //Sometimes the same variables are added twice.
+        if(original.reference != def.reference){
+          def.reference.getOrigin().report("","Duplicate declaration found");
+          map.get(name).reference.getOrigin().report("","Original declaration");
+          Fail("");
+        }
       }
     }
     map.put(name, def);

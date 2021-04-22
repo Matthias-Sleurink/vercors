@@ -286,9 +286,9 @@ public abstract class ASTFrame<T> {
       switch(action){
       case ENTER:
         DeclarationStatement decl=(DeclarationStatement)node;
-        if (decl.getParent() instanceof BlockStatement ||
-                (decl.getParent()==null &&  getParentNode() instanceof BlockStatement) ||
-                (decl.getParent()==null &&  getParentNode() instanceof BindingExpression)
+        if (decl.getParent() instanceof BlockStatement || getParentNode() instanceof BlockStatement ||
+                decl.getParent() instanceof BindingExpression || getParentNode() instanceof BindingExpression ||
+                decl.getParent() instanceof Contract || getParentNode() instanceof Contract
         ){
           variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
         }

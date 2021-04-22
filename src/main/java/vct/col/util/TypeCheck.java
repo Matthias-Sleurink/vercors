@@ -50,7 +50,11 @@ public class TypeCheck extends RecursiveVisitor<Type> {
   @Override
   public void enter_after(ASTNode node){
     super.enter_after(node);
-
+    if (node.isSpecial(ASTSpecial.Kind.Open)){
+      variables.enter();
+      variables.add("member",new VariableInfo(null, NameExpressionKind.Label));
+      variables.leave();
+    }
   }
 
   public TypeCheck(PassReport report, ProgramUnit arg){
@@ -863,14 +867,17 @@ public class TypeCheck extends RecursiveVisitor<Type> {
         Fail("Data type must be a class type.");
       }
       ASTClass cl = (ASTClass) ((ClassType) t).definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
-
+      variables.enter();
+      for (DeclarationStatement decl : cl.dynamicFields()) {
+        variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
+      }
       e.arg(1).accept(this);
       t = e.arg(1).getType();
       Objects.requireNonNull(t, "Formula type unknown.");
       if (!t.isBoolean()) {
         Fail("expression type is %s rather than boolean", t);
       }
-
+      variables.leave();
       e.setType(new PrimitiveType(PrimitiveSort.Resource));
       return;
     }

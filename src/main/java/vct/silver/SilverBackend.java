@@ -55,21 +55,44 @@ public class SilverBackend {
     return TestSilicon(given, tool, verifier);
   }
 
+  public static void OutputVar(String name, Object value) {
+	  if (value != null) {
+	    Output("  %s: (%s) %s", name, value.getClass().toString(), value.toString().replace('\n', ' '));
+	  } else {
+	  	Output("  %s: (%s) %s", name, "null", "null");
+	  }
+  }
+
   public static <Program> PassReport TestSilicon(PassReport given, String tool, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> verifier) {
     //hre.System.Output("verifying with %s backend",silver_module.get());
-    ProgramUnit arg=given.getOutput();
-    PassReport report=new PassReport(arg);
-    report.add(new PassAddVisitor(given));
-    report.setOutput(given.getOutput());
-    MessageFactory log=new MessageFactory(new PassAddVisitor(report));
-    TaskBegin verification=log.begin("Viper verification");
+	  Output("Goal 1: ");
+	  Output("This is just before we are going to use Silicon to find the null errors.");
+	  Output("Arguments: ");
+	  OutputVar( "given, a tool for generating logging messages", given);
+	  OutputVar( "tool, a piece of text that describes what 'Silicon' tool we're running with", tool);
+	  OutputVar( "verifier, a tool for running the Silicon program", verifier);
+
+	  Output("Local variables: ");
+	  ProgramUnit arg=given.getOutput();
+	  OutputVar("arg, a ProgramUnit given as input", arg);
+	  PassReport report=new PassReport(arg);
+	  OutputVar("report, a logging class", report);
+	  report.add(new PassAddVisitor(given));
+	  report.setOutput(given.getOutput());
+	  MessageFactory log=new MessageFactory(new PassAddVisitor(report));
+	  OutputVar("log, a logging util class for sectioning the log", log);
+	  TaskBegin verification=log.begin("Viper verification");
+	  OutputVar("verification, a util object for sectioning the log", verification);
 
     hre.lang.System.Progress("verifying with %s %s backend", "builtin", tool);
     //verifier.set_detail(Configuration.detailed_errors.get());
     VerCorsViperAPI vercors=VerCorsViperAPI.get();
+    OutputVar("vercors, a class for interfacing between VerCors and Viper", vercors);
     Program program = vercors.prog.convert(verifier,arg);
+    OutputVar("program, the input program converted to what the verCorsViperAPI made from it", program);
     log.phase(verification,"Backend AST conversion");
     String fname= Configuration.backend_file.get();
+    OutputVar("fname, the filename that the program will be written to if not null", fname);
     if (fname!=null){
       PrintWriter pw=null;
       try {
@@ -88,10 +111,12 @@ public class SilverBackend {
     }
 
     Properties settings=new Properties();
+    OutputVar("settings, an empty hashtable specialised for settings", settings);
     if (tool.startsWith("silicon")){
       //settings.setProperty("smt.soft_timeout",silicon_z3_timeout.get()+"");
     }
     ViperControl control=new ViperControl(log);
+    OutputVar("control", control);
     try {
       // Call into Viper to verify!
       List<? extends ViperError<Origin>> rawErrors = verifier.verify(
@@ -100,6 +125,7 @@ public class SilverBackend {
               program,
               control
       );
+      OutputVar("rawErrors, unfiltered errors", rawErrors);
       // Put it in a new list so we can add ViperErrors to it ourselves
       List<ViperError<Origin>> errors = new ArrayList<>(rawErrors);
 
@@ -124,6 +150,8 @@ public class SilverBackend {
         return false;
       });
 
+      OutputVar("errors, the rawErrors but filtered for some duplication and error hiding. Not relevant to our case", errors);
+
       // For each satCheckAssert that did not error, if its contract was besides that well formed
       // (i.e. we didn't get an error from the contract inhale),
       // it means the contract is unsatisfiable.
@@ -136,12 +164,14 @@ public class SilverBackend {
           errors.add(error);
         }
       }
+      OutputVar("errors, the same as the previous, but with errors added for unsound contracts (if any)", errors);
 
       if (errors.size() == 0) {
         Output("Success!");
       } else {
         Output("Errors! (%d)", errors.size());
         for(ViperError<Origin> e:errors){
+        	OutputVar("error, One of the errors found for this verification pass, before being logged", e);
           log.error(e);
         }
       }

@@ -65,24 +65,24 @@ public class SilverBackend {
 
   public static <Program> PassReport TestSilicon(PassReport given, String tool, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> verifier) {
     //hre.System.Output("verifying with %s backend",silver_module.get());
-	  Output("Goal 1: ");
-	  Output("This is just before we are going to use Silicon to find the null errors.");
-	  Output("Arguments: ");
-	  OutputVar( "given, a tool for generating logging messages", given);
-	  OutputVar( "tool, a piece of text that describes what 'Silicon' tool we're running with", tool);
-	  OutputVar( "verifier, a tool for running the Silicon program", verifier);
+    Output("Goal 1: ");
+    Output("This is just before we are going to use Silicon to find the null errors.");
+    Output("Arguments: ");
+    OutputVar( "given, a tool for generating logging messages", given);
+    OutputVar( "tool, a piece of text that describes what 'Silicon' tool we're running with", tool);
+    OutputVar( "verifier, a tool for running the Silicon program", verifier);
 
-	  Output("Local variables: ");
-	  ProgramUnit arg=given.getOutput();
-	  OutputVar("arg, a ProgramUnit given as input", arg);
-	  PassReport report=new PassReport(arg);
-	  OutputVar("report, a logging class", report);
-	  report.add(new PassAddVisitor(given));
-	  report.setOutput(given.getOutput());
-	  MessageFactory log=new MessageFactory(new PassAddVisitor(report));
-	  OutputVar("log, a logging util class for sectioning the log", log);
-	  TaskBegin verification=log.begin("Viper verification");
-	  OutputVar("verification, a util object for sectioning the log", verification);
+    Output("Local variables: ");
+    ProgramUnit arg=given.getOutput();
+    OutputVar("arg, a ProgramUnit given as input", arg);
+    PassReport report=new PassReport(arg);
+    OutputVar("report, a logging class", report);
+    report.add(new PassAddVisitor(given));
+    report.setOutput(given.getOutput());
+    MessageFactory log=new MessageFactory(new PassAddVisitor(report));
+    OutputVar("log, a logging util class for sectioning the log", log);
+    TaskBegin verification=log.begin("Viper verification");
+    OutputVar("verification, a util object for sectioning the log", verification);
 
     hre.lang.System.Progress("verifying with %s %s backend", "builtin", tool);
     //verifier.set_detail(Configuration.detailed_errors.get());

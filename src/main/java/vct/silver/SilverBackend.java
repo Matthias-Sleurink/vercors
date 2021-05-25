@@ -1,26 +1,32 @@
 package vct.silver;
 
-import hre.ast.HREOrigins;
+import hre.ast.*;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Lexer;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.tree.*;
+import vct.antlr4.generated.JavaParser;
+import vct.antlr4.generated.JavaParserBaseListener;
+import vct.antlr4.generated.LangJavaLexer;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import hre.ast.AssertOrigin;
-import hre.ast.RestOfContractOrigin;
+import vct.logging.*;
+import vct.main.Parsers;
+import vct.parsers.ErrorCounter;
+import vct.parsers.JavaFindAtLocationListener;
 import viper.api.*;
 
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
+import java.io.*;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import hre.ast.Origin;
 import hre.lang.HREError;
-import vct.logging.MessageFactory;
-import vct.logging.PassAddVisitor;
-import vct.logging.PassReport;
-import vct.logging.TaskBegin;
 import hre.config.Configuration;
 
 import static hre.lang.System.DebugException;
 import static hre.lang.System.Output;
+import static vct.parsers.JavaFindAtLocationListener.getAtLocation;
 
 public class SilverBackend {
   public static ViperAPI<Origin, ?,?,?,?,?,?>
@@ -136,6 +142,84 @@ public class SilverBackend {
           errors.add(error);
         }
       }
+			// TODO: method extraction!
+	    // This whole thing should be extracted to some sort of "ShouldGenerateTestForNullReturn"
+
+      // We verify somehow that this is indeed an error for which we want to generate a test.
+			// Examples 1 and 3 had a PostConditionFailed:AssertionFalse error
+			// Annoyingly example 2 has an AssertFailed:AssertionFalse error
+	    // These errors are though, also the ones that happen when other errors occur.
+	    // We must thus find these errors, and then check if their "Caused by" is indeed a version of \result!=null.
+
+			for (ViperError<Origin> error : errors) {
+				Output("Error: ");
+				for (int i = 0; i < Integer.MAX_VALUE; i++) {
+					try {
+						Output("error.getError(%d) = %s", i, error.getError(i));
+					} catch (IndexOutOfBoundsException e) {
+						break;
+					}
+				}
+				try {
+					Output("error.getOrigin(%d) = %s", 0, error.getOrigin(0));
+					Output("error.getOrigin(%d).getClass() = %s", 0, error.getOrigin(0).getClass());
+					Origin origin = error.getOrigin(0);
+					FileOrigin fo;
+					if (origin instanceof BranchOrigin) {
+						var baseOrigin = ((BranchOrigin) origin).base;
+						if (!(baseOrigin instanceof FileOrigin)) {
+							Output("%s did not have base of class %s!", origin.getClass(), FileOrigin.class);
+							continue; // try the next error
+						}
+						fo = (FileOrigin) baseOrigin;
+					} else if (origin instanceof FileOrigin) {
+						fo = (FileOrigin) origin;
+					} else {
+						continue; // For test generation purposes this branch is not interesting.
+					}
+					Output("The error location should be here: %s", fo);
+
+					if (fo.getPath() == null) { // TODO: probably never happens.
+						Output("Promising origin (%s) had no path!", fo);
+						continue;
+					}
+
+					// This is of course incredibly racy, but I couldn't get the project to do this in the better way...
+					var parsedFile = parsePath(fo.getPath());
+
+					if (parsedFile == null) {
+						continue; // This file origin did not bring us a parsable file.
+					}
+
+					var cuctx = parsedFile.compilationUnit();
+
+					Output("Interpreted source: %s", cuctx.toStringTree(parsedFile));
+
+					// getFirstColumn appears to be 1 indexed, where the col for the parser rule is 0 indexed.
+					var result = getAtLocation(fo.getFirstLine(), fo.getFirstColumn() - 1, cuctx);
+					Output("Issue in source result: %s", result.isEmpty() ? "null" : result.get().toStringTree(parsedFile));
+
+
+
+				} catch (IndexOutOfBoundsException e) {
+					break;
+				}
+			}
+
+
+//				Output("Code: %s, sub: %s", vercorsError.code, vercorsError.sub);
+//				if (
+//						vercorsError.code == VerCorsError.ErrorCode.PostConditionFailed
+//								&& vercorsError.sub == VerCorsError.SubCode.AssertionFalse) {
+//					// We have found error cases 1 and 3, if these are for ensures \result!=null
+//					Output("Cases 1 and 3!");
+//				} else if (
+//						vercorsError.code == VerCorsError.ErrorCode.AssertFailed
+//								&& vercorsError.sub == VerCorsError.SubCode.AssertionFalse
+//				) {
+//					// we have found error case 2 if this is from ensures \result!=null
+//					Output("Case 2!");
+//				}
 
       if (errors.size() == 0) {
         Output("Success!");
@@ -155,4 +239,19 @@ public class SilverBackend {
     return report;
   }
 
+  public static JavaParser parsePath(Path path) {
+
+		File file = path.toFile();
+	  Lexer lexer;
+	  try {
+		  lexer = new LangJavaLexer(CharStreams.fromStream(new FileInputStream(file)));
+	  } catch (IOException e) {
+		  DebugException(e);
+		  Output("Couldn't read input file again. See debug output for more info.");
+		  return null;
+	  }
+	  CommonTokenStream tokens = new CommonTokenStream(lexer);
+
+	  return new JavaParser(tokens);
+  }
 }

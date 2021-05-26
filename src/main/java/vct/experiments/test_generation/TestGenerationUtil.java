@@ -18,9 +18,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.CancellationException;
 
 import static hre.lang.System.DebugException;
 import static hre.lang.System.Output;
@@ -33,17 +32,88 @@ public class TestGenerationUtil {
 	 */
 	private TestGenerationUtil() {}
 
+
+	/**
+	 * @param error An error to generate a test for. Nothing will be generated for a null ViperError.
+	 */
+	public static void logTestFor(ViperError<Origin> error) {
+		var generationType = getGenerationType(error);
+		if (generationType == TestGenerationType.RETURN_CAN_BE_NULL) {
+			logReturnCanBeNull(error);
+		}
+		// Other types of tests can be appended here.
+	}
+
+	/**
+	 * Log a test to the `Output` for the RETURN_CAN_BE_NULL case.
+	 *
+	 * @param error May not be null. Assumed that this is a RETURN_CAN_BE_NULL ViperError.
+	 */
+	private static void logReturnCanBeNull(ViperError<Origin> error) {
+		// Remember that for RETURN_CAN_BE_NULL origin 0 is the one that points at the return statement
+		var fileOrigin = getFileOrigin(error.getOrigin(0));
+		var file = getOrCreateFile(fileOrigin.getPath());
+		var parser = parseFile(file);
+		if (parser == null) {
+			Output("Tried to generate a test of type RETURN_CAN_BE_NULL for a null ViperError.");
+			return;
+		}
+
+		var tree = parser.compilationUnit();
+		Output("Tree: %s", tree.toStringTree(parser));
+		var reqStack = getRequirementsFor(fileOrigin.getFirstLine(), fileOrigin.getFirstColumn(), tree);
+		if (reqStack == null) {
+			Output("Was not able to generate requirements for ViperError for RETURN_CAN_BE_NULL test case.");
+			return;
+		}
+
+		for (var reqList : reqStack){
+			for (ParserRuleContext req : reqList) {
+				Output("Requirement: (%s), %s", req.getClass().toString(), req.toStringTree(parser));
+			}
+		}
+
+	}
+
+	/**
+	 * Works, but not the intended final design.
+	 *
+	 * In the end I'd like this to be a custom type with knowledge about scopes, variable availability and more.
+	 *
+	 * @param line Raw line number from an origin
+	 * @param col Raw col index from an origin
+	 * @param tree The tree to search below.
+	 * @return If possible, a stack of lists with requirements as ParserRuleContexts
+	 */
+	private static Stack<List<ParserRuleContext>> getRequirementsFor(int line, int col, ParseTree tree) {
+		var endpoint = getAtLocation(line, col, tree);
+		if (endpoint.isEmpty()) {
+			return null;
+		}
+
+		var reqBuilder = new RequirementListBuilderListener(endpoint.get());
+
+		try {
+			ParseTreeWalker.DEFAULT.walk(reqBuilder, tree);
+			return null;
+			// When the listener has found all the results it wants it throws a CancellationException.
+		} catch (CancellationException e) {
+			// Found the wanted results
+			return reqBuilder.requirements;
+		}
+	}
+
+
 	/**
 	 * @param line The line index that your wished context is at.
-	 * @param col The Col index that you wished context is at. Antlr indexes the cols at 0, Origin appears to index to 1
+	 * @param col The Col index that your wished context is at. Handles that antlrs indexes start at 0 and origins at 1
 	 * @param tree The tree to search below.
 	 * @return Either a context if found, or null if not.
 	 */
 	public static Optional<ParserRuleContext> getAtLocation(int line, int col, ParseTree tree) {
+		var listener = new JavaFindAtLocationListener(line, col - 1);
 
-		var listener = new JavaFindAtLocationListener(line, col);
-
-		new ParseTreeWalker().walk(listener, tree);
+		ParseTreeWalker.DEFAULT.walk(listener, tree);
 
 		return Optional.ofNullable(listener.result);
 	}
@@ -66,6 +136,9 @@ public class TestGenerationUtil {
 	 * Note that this method takes into account that the FileOrigins getFirstColumn appears to be 1 indexed
 	 *  where the col for the parser rule is 0 indexed.
 	 *
+	 * This does not give access to the parsers result after this.
+	 *  Thus it cannot be used with Trees from different parsers elements.
+	 *
 	 * @param origin May be null.
 	 * @return The ParserRuleContext at this location. Empty if file not found, parser creation failed, or origin null.
 	 */
@@ -77,7 +150,7 @@ public class TestGenerationUtil {
 		var parser = parseFile(file);
 		if (parser == null) return Optional.empty();
 
-		return getAtLocation(origin.getFirstLine(), origin.getFirstColumn() - 1, parser.compilationUnit());
+		return getAtLocation(origin.getFirstLine(), origin.getFirstColumn(), parser.compilationUnit());
 	}
 
 	/**
@@ -98,6 +171,13 @@ public class TestGenerationUtil {
 		return new JavaParser(tokens);
 	}
 
+	/**
+	 * A best effort basis attempt to finding a FileOrigin from a more generic Origin.
+	 * Handles exactly as much as I need for this project. Extendable to do more if needed.
+	 *
+	 * @param origin The origin to find a nested FileOrigin inside.
+	 * @return A fileOrigin. Always. Throws NotImplementedError when it doesn't know how.
+	 */
 	public static FileOrigin getFileOrigin(Origin origin) {
 		if (origin instanceof FileOrigin) {
 			return (FileOrigin) origin;

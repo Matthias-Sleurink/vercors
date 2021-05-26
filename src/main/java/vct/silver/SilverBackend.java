@@ -16,7 +16,6 @@ import hre.config.Configuration;
 
 import static hre.lang.System.DebugException;
 import static hre.lang.System.Output;
-import static vct.experiments.test_generation.TestGenerationUtil.*;
 
 public class SilverBackend {
   public static ViperAPI<Origin, ?,?,?,?,?,?>
@@ -134,7 +133,8 @@ public class SilverBackend {
       }
 
 			for (ViperError<Origin> error : errors) {
-				if (getGenerationType(error) == TestGenerationType.RETURN_CAN_BE_NULL) {
+				TestGenerationUtil.logTestFor(error);
+				if (TestGenerationUtil.getGenerationType(error) == TestGenerationType.RETURN_CAN_BE_NULL) {
 					Output("Should generate RETURN_CAN_BE_NULL test.");
 				}
 			}

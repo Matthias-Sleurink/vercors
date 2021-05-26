@@ -2,6 +2,7 @@ package vct.silver;
 
 import hre.ast.*;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.experiments.test_generation.TestGenerationType;
 import vct.experiments.test_generation.TestGenerationUtil;
 import vct.logging.*;
 import viper.api.*;
@@ -131,33 +132,12 @@ public class SilverBackend {
           errors.add(error);
         }
       }
-			// TODO: method extraction!
-	    // This whole thing should be extracted to some sort of "ShouldGenerateTestForNullReturn"
-
-      // We verify somehow that this is indeed an error for which we want to generate a test.
-			// Examples 1 and 3 had a PostConditionFailed:AssertionFalse error
-			// Annoyingly example 2 has an AssertFailed:AssertionFalse error
-	    // These errors are though, also the ones that happen when other errors occur.
-	    // We must thus find these errors, and then check if their "Caused by" is indeed a version of \result!=null.
 
 			for (ViperError<Origin> error : errors) {
-				Output("GenerationType detected: %s", getGenerationType(error).toString());
+				if (getGenerationType(error) == TestGenerationType.RETURN_CAN_BE_NULL) {
+					Output("Should generate RETURN_CAN_BE_NULL test.");
+				}
 			}
-
-
-//				Output("Code: %s, sub: %s", vercorsError.code, vercorsError.sub);
-//				if (
-//						vercorsError.code == VerCorsError.ErrorCode.PostConditionFailed
-//								&& vercorsError.sub == VerCorsError.SubCode.AssertionFalse) {
-//					// We have found error cases 1 and 3, if these are for ensures \result!=null
-//					Output("Cases 1 and 3!");
-//				} else if (
-//						vercorsError.code == VerCorsError.ErrorCode.AssertFailed
-//								&& vercorsError.sub == VerCorsError.SubCode.AssertionFalse
-//				) {
-//					// we have found error case 2 if this is from ensures \result!=null
-//					Output("Case 2!");
-//				}
 
       if (errors.size() == 0) {
         Output("Success!");

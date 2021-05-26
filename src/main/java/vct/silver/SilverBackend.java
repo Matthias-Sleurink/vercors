@@ -1,23 +1,12 @@
 package vct.silver;
 
 import hre.ast.*;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.Lexer;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.tree.*;
-import vct.antlr4.generated.JavaParser;
-import vct.antlr4.generated.JavaParserBaseListener;
-import vct.antlr4.generated.LangJavaLexer;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.experiments.test_generation.TestGenerationUtil;
 import vct.logging.*;
-import vct.main.Parsers;
-import vct.parsers.ErrorCounter;
-import vct.parsers.JavaFindAtLocationListener;
 import viper.api.*;
 
 import java.io.*;
-import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -26,7 +15,7 @@ import hre.config.Configuration;
 
 import static hre.lang.System.DebugException;
 import static hre.lang.System.Output;
-import static vct.parsers.JavaFindAtLocationListener.getAtLocation;
+import static vct.experiments.test_generation.TestGenerationUtil.*;
 
 public class SilverBackend {
   public static ViperAPI<Origin, ?,?,?,?,?,?>
@@ -152,58 +141,7 @@ public class SilverBackend {
 	    // We must thus find these errors, and then check if their "Caused by" is indeed a version of \result!=null.
 
 			for (ViperError<Origin> error : errors) {
-				Output("Error: ");
-				for (int i = 0; i < Integer.MAX_VALUE; i++) {
-					try {
-						Output("error.getError(%d) = %s", i, error.getError(i));
-					} catch (IndexOutOfBoundsException e) {
-						break;
-					}
-				}
-				try {
-					Output("error.getOrigin(%d) = %s", 0, error.getOrigin(0));
-					Output("error.getOrigin(%d).getClass() = %s", 0, error.getOrigin(0).getClass());
-					Origin origin = error.getOrigin(0);
-					FileOrigin fo;
-					if (origin instanceof BranchOrigin) {
-						var baseOrigin = ((BranchOrigin) origin).base;
-						if (!(baseOrigin instanceof FileOrigin)) {
-							Output("%s did not have base of class %s!", origin.getClass(), FileOrigin.class);
-							continue; // try the next error
-						}
-						fo = (FileOrigin) baseOrigin;
-					} else if (origin instanceof FileOrigin) {
-						fo = (FileOrigin) origin;
-					} else {
-						continue; // For test generation purposes this branch is not interesting.
-					}
-					Output("The error location should be here: %s", fo);
-
-					if (fo.getPath() == null) { // TODO: probably never happens.
-						Output("Promising origin (%s) had no path!", fo);
-						continue;
-					}
-
-					// This is of course incredibly racy, but I couldn't get the project to do this in the better way...
-					var parsedFile = parsePath(fo.getPath());
-
-					if (parsedFile == null) {
-						continue; // This file origin did not bring us a parsable file.
-					}
-
-					var cuctx = parsedFile.compilationUnit();
-
-					Output("Interpreted source: %s", cuctx.toStringTree(parsedFile));
-
-					// getFirstColumn appears to be 1 indexed, where the col for the parser rule is 0 indexed.
-					var result = getAtLocation(fo.getFirstLine(), fo.getFirstColumn() - 1, cuctx);
-					Output("Issue in source result: %s", result.isEmpty() ? "null" : result.get().toStringTree(parsedFile));
-
-
-
-				} catch (IndexOutOfBoundsException e) {
-					break;
-				}
+				Output("GenerationType detected: %s", getGenerationType(error).toString());
 			}
 
 
@@ -239,19 +177,4 @@ public class SilverBackend {
     return report;
   }
 
-  public static JavaParser parsePath(Path path) {
-
-		File file = path.toFile();
-	  Lexer lexer;
-	  try {
-		  lexer = new LangJavaLexer(CharStreams.fromStream(new FileInputStream(file)));
-	  } catch (IOException e) {
-		  DebugException(e);
-		  Output("Couldn't read input file again. See debug output for more info.");
-		  return null;
-	  }
-	  CommonTokenStream tokens = new CommonTokenStream(lexer);
-
-	  return new JavaParser(tokens);
-  }
 }

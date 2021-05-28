@@ -21,8 +21,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 
-import static hre.lang.System.DebugException;
-import static hre.lang.System.Output;
+import static hre.lang.System.*;
 
 public class TestGenerationUtil {
 
@@ -211,6 +210,13 @@ public class TestGenerationUtil {
 		if (error.getExtraCount() < 1) return false;
 
 		var fileOrigin = getFileOrigin(error.getOrigin(0));
+
+		var filename = fileOrigin.getPath().toFile().getName();
+		if (filename.endsWith("java") || filename.endsWith("java8") || filename.endsWith("java7")) {
+			// This follows the allowed extensions in `vct/main/Parsers;getParser(String)`
+			return false;
+		}
+
 		var opt_parseRule = getParseRuleFor(fileOrigin);
 
 		if (opt_parseRule.isEmpty()) return false;

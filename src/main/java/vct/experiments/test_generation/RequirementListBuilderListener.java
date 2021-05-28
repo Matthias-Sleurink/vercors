@@ -15,20 +15,36 @@ import static hre.lang.System.Output;
 
 // TODO: Make sure that multi method classes also work. (Flush when not found yet in a method?)
 public class RequirementListBuilderListener extends JavaParserBaseListener {
-	public static boolean contextMeansReverseNext(ParserRuleContext ctx) {return ctx instanceof ReverseNextRuleFakeContext;}
 	/**
 	 * When we enter a scope we do not yet know whether or not our result is inside this scope.
 	 * Thus we make a stack of requirements, these are then popped and pushed when entering and exiting scopes.
 	 */
-	public Stack<List<ParserRuleContext>> requirements = new Stack<>();
+	public Stack<List<ProgramFlowConstraint>> requirements = new Stack<>();
 	public ParserRuleContext endpoint;
 
+	/**
+	 * You probably don't want tot use this. Use
+	 *  `vct/experiments/test_generation/TestGenerationUtil;getRequirementsFor(I,I,ParseTree)Stack` instead.
+	 *
+	 * The endpoint is used to call .equals from.
+	 *  This means that you can create a custom `ParserRuleContext` subclass for fancy stuff.
+	 *
+	 * @param endpoint Where we stop we throw a CancellationException when we see this.
+	 */
 	public RequirementListBuilderListener(ParserRuleContext endpoint) {
 		this.endpoint = endpoint;
 	}
 
-	private void addReq(ParserRuleContext req) {
-		this.requirements.peek().add(req);
+	private void addTest(ParserRuleContext ctx) {
+		this.requirements.peek().add(new ProgramFlowConstraint(ProgramFlowConstraint.Type.VariablesTest, ctx));
+	}
+
+	private void addSource(ParserRuleContext ctx) {
+		this.requirements.peek().add(new ProgramFlowConstraint(ProgramFlowConstraint.Type.VariableSource, ctx));
+	}
+
+	private void addConstraint(ProgramFlowConstraint constraint) {
+		this.requirements.peek().add(constraint);
 	}
 
 	private void popScope() {this.requirements.pop();}
@@ -37,7 +53,8 @@ public class RequirementListBuilderListener extends JavaParserBaseListener {
 	@Override
 	public void enterEveryRule(ParserRuleContext ctx) {
 //		Output("Rule: %s", ctx.getClass().toString());
-		if (ctx.equals(endpoint)) {
+		if (endpoint.equals(ctx)) {
+			this.addConstraint(new ProgramFlowConstraint(ProgramFlowConstraint.Type.Goal, ctx));
 			throw new CancellationException(String.format("Found result in %s.", this.getClass().toString()));
 		}
 	}
@@ -64,36 +81,36 @@ public class RequirementListBuilderListener extends JavaParserBaseListener {
 
 	@Override
 	public void enterFormalParameter0(JavaParser.FormalParameter0Context ctx) {
-		addReq(ctx); // Source
+		addSource(ctx); // Source
 	}
 
 	@Override
 	public void enterVarargsFormalParameter0(JavaParser.VarargsFormalParameter0Context ctx) {
-		addReq(ctx); // Source
+		addSource(ctx); // Source
 	}
 
 	@Override
 	public void exitVariableDeclarator0(JavaParser.VariableDeclarator0Context ctx) {
-		addReq(ctx); // Source
+		addSource(ctx); // Source
 	}
 
 	@Override // Assert
 	public void enterStatement1(JavaParser.Statement1Context ctx) {
-		addReq(ctx); // constraint
+		addTest(ctx); // test (Assert statement
 	}
 
 	@Override
 	public void enterStatement2(JavaParser.Statement2Context ctx) {
 		// This is the entrypoint to an if statement
 		pushScope();
-		addReq(ctx.parExpression()); // this happening is assumed in enterElseBlock0
+		addTest(ctx.parExpression()); // this happening is assumed in enterElseBlock0
 	}
 
 	@Override
 	public void exitStatement2(JavaParser.Statement2Context ctx) {
 		// If this did not have an else block we pop here
 		// If this does have an else block we handle that in the else context (Since we need to reverse the entry requirement etc)
-		if (ctx.elseBlock() != null) {
+		if (ctx.elseBlock() == null) {
 			popScope();
 		}
 	}
@@ -105,8 +122,8 @@ public class RequirementListBuilderListener extends JavaParserBaseListener {
 		var reqToReverse = this.requirements.peek().get(0);
 		popScope();
 		pushScope();
-		addReq(new ReverseNextRuleFakeContext());
-		addReq(reqToReverse);
+		reqToReverse.reversed = !reqToReverse.reversed;
+		addConstraint(reqToReverse);
 	}
 
 	@Override

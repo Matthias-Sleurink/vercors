@@ -67,8 +67,8 @@ public class TestGenerationUtil {
 		}
 
 		for (var reqList : reqStack){
-			for (ParserRuleContext req : reqList) {
-				Output("Requirement: (%s), %s", req.getClass().toString(), req.toStringTree(parser));
+			for (var constraint : reqList) {
+				Output(constraint.repr(parser));
 			}
 		}
 
@@ -84,7 +84,7 @@ public class TestGenerationUtil {
 	 * @param tree The tree to search below.
 	 * @return If possible, a stack of lists with requirements as ParserRuleContexts
 	 */
-	private static Stack<List<ParserRuleContext>> getRequirementsFor(int line, int col, ParseTree tree) {
+	private static Stack<List<ProgramFlowConstraint>> getRequirementsFor(int line, int col, ParseTree tree) {
 		var endpoint = getAtLocation(line, col, tree);
 		if (endpoint.isEmpty()) {
 			return null;
@@ -212,7 +212,7 @@ public class TestGenerationUtil {
 		var fileOrigin = getFileOrigin(error.getOrigin(0));
 
 		var filename = fileOrigin.getPath().toFile().getName();
-		if (filename.endsWith("java") || filename.endsWith("java8") || filename.endsWith("java7")) {
+		if (!(filename.endsWith("java") || filename.endsWith("java8") || filename.endsWith("java7"))) {
 			// This follows the allowed extensions in `vct/main/Parsers;getParser(String)`
 			return false;
 		}

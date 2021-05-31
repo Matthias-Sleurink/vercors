@@ -1,11 +1,13 @@
 package vct.experiments.test_generation;
 
+import org.antlr.v4.runtime.ParserRuleContext;
 import scala.NotImplementedError;
 import vct.antlr4.generated.JavaParser;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Stack;
 
 public class ContextUtil {
 
@@ -112,5 +114,101 @@ public class ContextUtil {
 		//  Every formalParamList either has a
 		//    param and a list, or a
 		//    param and null
+	}
+
+	public static String getType(JavaParser.FormalParameterContext parameterContext) {
+		if (!(parameterContext instanceof JavaParser.FormalParameter0Context)) {
+			return "INVALID_FORMAL_PARAM_CONTEXT_NO_TYPE_EXTRACTABLE";
+		}
+
+		var typeContext = ((JavaParser.FormalParameter0Context) parameterContext).type();
+
+		if (!(typeContext instanceof JavaParser.Type2Context)) {
+			throw new NotImplementedError("Cannot parse type of Formal Parameter, is not a primitive.");
+		}
+
+		String type = ((JavaParser.Type2Context) typeContext).primitiveType().getText();
+		var dimsctx = ((JavaParser.Type2Context) typeContext).dims();
+		if (dimsctx == null) {
+			return type; // No dimensioncontext mean not an array.
+		}
+		return type + dimsctx.getText();
+	}
+
+	public static String getValueInitializer(JavaParser.FormalParameterContext param, Object requiredValue) {
+		if (requiredValue == null) {
+			return "null";
+		} else if (requiredValue instanceof Integer) {
+			return requiredValue.toString();
+		}
+		throw new NotImplementedError(String.format("No way of getting value init for param %s and value %s.", param, requiredValue));
+	}
+
+	public static Object getRequiredValue(JavaParser.FormalParameterContext param,
+	                                      Stack<List<ProgramFlowConstraint>> constraints) {
+		if (isGoal(param, constraints)) {
+			return null; // For now we hardcode this
+		} else {
+			throw new NotImplementedError("Only made support from reqValue of goal for now.");
+		}
+	}
+
+	public static boolean isGoal(JavaParser.FormalParameterContext param, Stack<List<ProgramFlowConstraint>> constraints) {
+		var actualGoal = ConstraintUtil.getGoal(constraints);
+
+		var goalVarName = getName(actualGoal.context);
+		var paramName = getName(param);
+
+		// Since java has unique local variable names we can just compare these and ignore scopes.
+		return Objects.equals(goalVarName, paramName);
+	}
+
+	public static String getName(JavaParser.Statement11Context context) {
+		if (context.expression() == null) {
+			return ""; // bare return statement, never happens for us for now
+		}
+		return getName(context.expression());
+	}
+
+	public static String getName(JavaParser.ExpressionContext context) {
+		if (!(context instanceof JavaParser.Expression1Context)) {
+			throw new NotImplementedError("Can only get name from bare expressions");
+		}
+		var prim = ((JavaParser.Expression1Context) context).primary();
+
+		if (!(prim instanceof JavaParser.Primary4Context)) {
+			throw new NotImplementedError("Can only get name from bare name Primary context");
+		}
+
+		return getName(((JavaParser.Primary4Context) prim).javaIdentifier());
+	}
+
+	public static String getName(JavaParser.JavaIdentifierContext context) {
+		if (!(context instanceof JavaParser.JavaIdentifier1Context)) {
+			throw new NotImplementedError("Can only get name from bare identifier contexts");
+		}
+
+		return ((JavaParser.JavaIdentifier1Context) context).Identifier().getText().strip();
+	}
+
+	public static String getName(JavaParser.FormalParameter0Context context) {
+		if (!(context.variableDeclaratorId() instanceof JavaParser.VariableDeclaratorId0Context)) {
+			throw new NotImplementedError("The Java Parser changed! This is not able to happen at the point of writing.");
+		}
+		return getName((JavaParser.VariableDeclaratorId0Context) context.variableDeclaratorId());
+	}
+
+	public static String getName(JavaParser.VariableDeclaratorId0Context context) {
+		return getName(context.javaIdentifier());
+	}
+
+	public static String getName(ParserRuleContext context) {
+		if (context instanceof JavaParser.Statement11Context) {
+			return getName((JavaParser.Statement11Context) context);
+		} else if (context instanceof JavaParser.FormalParameter0Context) {
+			return getName((JavaParser.FormalParameter0Context) context);
+		}
+
+		throw new NotImplementedError("Cannot get name for this object of type " + context.getClass().toString());
 	}
 }

@@ -83,18 +83,25 @@ public class TestGenerationUtil {
 		// In theory this is always true from the helper, but it's a good check to do.
 		if (goal.type != ProgramFlowConstraint.Type.Goal) return;
 
-
-		if (getParams(getSurroundingMethod(goal)).size() != 0) {
-			// TODO: setup parameter code from requirements
+		StringBuilder code = new StringBuilder();
+		int index = 0;
+		for (var param : getParams(getSurroundingMethod(goal))) {
+			code.append(getType(param))
+					.append(" ")
+					.append("param")
+					.append(index)
+					.append(" = ")
+					.append(getValueInitializer(param, getRequiredValue(param, constraints)))
+					.append(";\n");
+			index++;
 		}
 
 		// if requirements of static vars {setup}
 
-		var callCode = getCallCode(constraints);
+		code.append(getCallCode(constraints));
+		code.append("// Above will be null. But there is a postcondition that claims it is not. \n");
 
-		Output("CallCode: %s", callCode);
-
-
+		Output("Start of generated code:\n%s\nEnd of generated code.", code);
 	}
 
 

@@ -138,19 +138,67 @@ public class ContextUtil {
 	public static String getValueInitializer(JavaParser.FormalParameterContext param, Object requiredValue) {
 		if (requiredValue == null) {
 			return "null";
-		} else if (requiredValue instanceof Integer) {
+		} else if (requiredValue instanceof Boolean ||
+				requiredValue instanceof Byte ||
+				requiredValue instanceof Short ||
+				requiredValue instanceof Integer ||
+				requiredValue instanceof Long ||
+				requiredValue instanceof Double) {
 			return requiredValue.toString();
+		}else if (requiredValue instanceof Float) {
+			return requiredValue + "F";
+		} else if (requiredValue instanceof Character) {
+			return "'" + requiredValue + "'";
+		} else if (requiredValue instanceof String) {
+			return '"' + (String) requiredValue + '"';
 		}
+		// This may just be out of scope.
+		//  There are loads of things that do this, they are all huge. (Think frameworks like Spring etc.)
 		throw new NotImplementedError(String.format("No way of getting value init for param %s and value %s.", param, requiredValue));
 	}
 
 	public static Object getRequiredValue(JavaParser.FormalParameterContext param,
 	                                      Stack<List<ProgramFlowConstraint>> constraints) {
 		if (isGoal(param, constraints)) {
-			return null; // For now we hardcode this
+			if (hasNoDirectRequirements(param, constraints)) {
+				return null; // For now we hardcode this
+			}
+			// TODO: the case where the only requirements are null
+			throw new NotImplementedError("Cannot get required value for goal that must be null but also has other requirements.");
+		} else if (hasNoDirectRequirements(param, constraints)) {
+			return getDefaultValueForType(getType(param));
 		} else {
 			throw new NotImplementedError("Only made support from reqValue of goal for now.");
 		}
+	}
+
+	public static boolean hasNoDirectRequirements(JavaParser.FormalParameterContext param, Stack<List<ProgramFlowConstraint>> constraints) {
+		return true; // TODO: Will work on this tomorrow
+	}
+
+	public static Object getDefaultValueForType(String type) {
+		return switch (type) {
+			case "string":
+				yield (String) "";
+			case "int":
+				yield (Integer) 1;
+			case "long":
+				yield (Long) 1L;
+			case "short":
+				yield Short.valueOf("1");
+			case "byte":
+				yield Byte.valueOf("1");
+			case "boolean":
+				yield Boolean.TRUE;
+			case "char":
+				yield (Character) 'a';
+			case "float":
+				yield (Float) 0.0F;
+			case "double":
+				yield (Double) 0.0;
+			default:
+				throw new IllegalStateException("Unexpected value for getDefaultValue: " + type);
+		};
 	}
 
 	public static boolean isGoal(JavaParser.FormalParameterContext param, Stack<List<ProgramFlowConstraint>> constraints) {

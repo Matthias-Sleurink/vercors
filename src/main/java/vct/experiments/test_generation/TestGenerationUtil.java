@@ -119,7 +119,7 @@ public class TestGenerationUtil {
 		var params = getParams(method);
 
 		if (params.size() == 0) {
-			return baseText.append(");").toString();
+			return baseText.append(");\n").toString();
 		}
 		// for all but the last
 		for (int i = 0; i < params.size() - 1; i++) {
@@ -128,7 +128,7 @@ public class TestGenerationUtil {
 
 		return baseText.append("param")
 										.append(params.size() - 1)
-										.append(");")
+										.append(");\n")
 										.toString();
 	}
 

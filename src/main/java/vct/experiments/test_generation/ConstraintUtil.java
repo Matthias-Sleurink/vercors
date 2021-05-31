@@ -3,6 +3,10 @@ package vct.experiments.test_generation;
 import org.antlr.v4.runtime.ParserRuleContext;
 import vct.antlr4.generated.JavaParser;
 
+import java.security.InvalidParameterException;
+import java.util.List;
+import java.util.Stack;
+
 public class ConstraintUtil {
 
 
@@ -44,4 +48,12 @@ public class ConstraintUtil {
 		return getSurroundingClass(context.getParent());
 	}
 
+	public static ProgramFlowConstraint getGoal(Stack<List<ProgramFlowConstraint>> constraints) {
+		ProgramFlowConstraint constraint = constraints.peek().get(constraints.peek().size() - 1);
+
+		if (constraint.type == ProgramFlowConstraint.Type.Goal) {
+			return constraint;
+		}
+		throw new InvalidParameterException("ERROR: list of constraints did not have Goal at end.");
+	}
 }

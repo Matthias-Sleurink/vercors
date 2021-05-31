@@ -22,6 +22,8 @@ import java.util.*;
 import java.util.concurrent.CancellationException;
 
 import static hre.lang.System.*;
+import static vct.experiments.test_generation.ConstraintUtil.*;
+import static vct.experiments.test_generation.ContextUtil.*;
 
 public class TestGenerationUtil {
 
@@ -81,39 +83,47 @@ public class TestGenerationUtil {
 		// In theory this is always true from the helper, but it's a good check to do.
 		if (goal.type != ProgramFlowConstraint.Type.Goal) return;
 
-		var klass = ConstraintUtil.getSurroundingClass(goal);
-		var className = ContextUtil.getClassName(klass);
 
-		var method = ConstraintUtil.getSurroundingMethod(goal);
-		var methodname = ContextUtil.getMethodName(method);
-
-		var staticMethod = ContextUtil.isStatic(method);
-
-		String callText;
-		if (staticMethod) {
-			// classname + . + methodname = baseOfCall
-			callText = className + "." + methodname;
-		} else {
-			// find constr to call // For now assume basic constr is available
-			callText = methodname;
-		}
-		Output("Would call: %s", callText);
-
-		var constructorText = "";
-		if (!staticMethod) {
-			// Assume basic constr is allowed
-			constructorText += className + " obj = new " + className + "();";
+		if (getParams(getSurroundingMethod(goal)).size() != 0) {
+			// TODO: setup parameter code from requirements
 		}
 
-		// -> find prereq
-		// We need to check for outer requirements
+		// if requirements of static vars {setup}
 
+		var callCode = getCallCode(constraints);
 
-
+		Output("CallCode: %s", callCode);
 
 
 	}
 
+
+	private static String getCallCode(Stack<List<ProgramFlowConstraint>> constraints) {
+		var goal = getGoal(constraints);
+
+		var method = getSurroundingMethod(goal);
+
+		StringBuilder baseText = new StringBuilder();
+		if (isStatic(method)) {
+			baseText.append(getClassName(getSurroundingClass(method)))
+			.append(".");
+		}
+		baseText.append(getMethodName(method)).append("(");
+		var params = getParams(method);
+
+		if (params.size() == 0) {
+			return baseText.append(");").toString();
+		}
+		// for all but the last
+		for (int i = 0; i < params.size() - 1; i++) {
+			baseText.append("param").append(i).append(", ");
+		}
+
+		return baseText.append("param")
+										.append(params.size() - 1)
+										.append(");")
+										.toString();
+	}
 
 	/**
 	 * @param line Raw line number from an origin

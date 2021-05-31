@@ -131,12 +131,16 @@ public class SilverBackend {
           errors.add(error);
         }
       }
-
-			for (ViperError<Origin> error : errors) {
-				TestGenerationUtil.logTestFor(error);
-				if (TestGenerationUtil.getGenerationType(error) == TestGenerationType.RETURN_CAN_BE_NULL) {
-					Output("Should generate RETURN_CAN_BE_NULL test.");
+			try {
+				for (ViperError<Origin> error : errors) {
+					TestGenerationUtil.logTestFor(error);
+					if (TestGenerationUtil.getGenerationType(error) == TestGenerationType.RETURN_CAN_BE_NULL) {
+						Output("Should generate RETURN_CAN_BE_NULL test.");
+					}
 				}
+			} catch (Error e) {
+				DebugException(e);
+				Output("Fault in Generating test! Exception logged to Debug log. (%s)", e);
 			}
 
       if (errors.size() == 0) {

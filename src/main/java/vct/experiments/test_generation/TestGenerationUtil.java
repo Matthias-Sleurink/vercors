@@ -58,9 +58,9 @@ public class TestGenerationUtil {
 			return;
 		}
 
-		var tree = parser.compilationUnit();
-		Output("Tree: %s", tree.toStringTree(parser));
-		var reqStack = getRequirementsFor(fileOrigin.getFirstLine(), fileOrigin.getFirstColumn(), tree);
+		var compilationUnit = parser.compilationUnit();
+		Output("Tree: %s", compilationUnit.toStringTree(parser));
+		var reqStack = getRequirementsFor(fileOrigin.getFirstLine(), fileOrigin.getFirstColumn(), compilationUnit);
 		if (reqStack == null) {
 			Output("Was not able to generate requirements for ViperError for RETURN_CAN_BE_NULL test case.");
 			return;
@@ -72,13 +72,50 @@ public class TestGenerationUtil {
 			}
 		}
 
+		getCodeThatSatisfies(reqStack, compilationUnit);
+
 	}
 
+	private static void getCodeThatSatisfies(Stack<List<ProgramFlowConstraint>> constraints, JavaParser.CompilationUnitContext file) {
+		var goal = constraints.peek().get(constraints.peek().size() - 1);
+		// In theory this is always true from the helper, but it's a good check to do.
+		if (goal.type != ProgramFlowConstraint.Type.Goal) return;
+
+		var klass = ConstraintUtil.getSurroundingClass(goal);
+		var className = ContextUtil.getClassName(klass);
+
+		var method = ConstraintUtil.getSurroundingMethod(goal);
+		var methodname = ContextUtil.getMethodName(method);
+
+		var staticMethod = ContextUtil.isStatic(method);
+
+		String callText;
+		if (staticMethod) {
+			// classname + . + methodname = baseOfCall
+			callText = className + "." + methodname;
+		} else {
+			// find constr to call // For now assume basic constr is available
+			callText = methodname;
+		}
+		Output("Would call: %s", callText);
+
+		var constructorText = "";
+		if (!staticMethod) {
+			// Assume basic constr is allowed
+			constructorText += className + " obj = new " + className + "();";
+		}
+
+		// -> find prereq
+		// We need to check for outer requirements
+
+
+
+
+
+	}
+
+
 	/**
-	 * Works, but not the intended final design.
-	 *
-	 * In the end I'd like this to be a custom type with knowledge about scopes, variable availability and more.
-	 *
 	 * @param line Raw line number from an origin
 	 * @param col Raw col index from an origin
 	 * @param tree The tree to search below.

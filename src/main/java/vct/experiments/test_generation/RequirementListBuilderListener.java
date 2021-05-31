@@ -47,6 +47,7 @@ public class RequirementListBuilderListener extends JavaParserBaseListener {
 		this.requirements.peek().add(constraint);
 	}
 
+	// popping a scope really needs to work differently for problems more complex than the examples.
 	private void popScope() {this.requirements.pop();}
 	private void pushScope() {this.requirements.push(new ArrayList<>());}
 
@@ -90,7 +91,7 @@ public class RequirementListBuilderListener extends JavaParserBaseListener {
 	}
 
 	@Override
-	public void exitVariableDeclarator0(JavaParser.VariableDeclarator0Context ctx) {
+	public void enterVariableDeclarator0(JavaParser.VariableDeclarator0Context ctx) {
 		addSource(ctx); // Source
 	}
 
@@ -129,5 +130,38 @@ public class RequirementListBuilderListener extends JavaParserBaseListener {
 	@Override
 	public void exitElseBlock0(JavaParser.ElseBlock0Context ctx) {
 		popScope();
+	}
+
+	@Override
+	public void enterStatement4(JavaParser.Statement4Context ctx) {
+		pushScope(); // enter a while loop
+		addConstraint(new ProgramFlowConstraint(ProgramFlowConstraint.Type.VariableTestWhile, ctx.parExpression()));
+	}
+
+	@Override
+	public void exitStatement4(JavaParser.Statement4Context ctx) {
+		popScope(); // exit a while loop
+	}
+
+	@Override
+	public void enterStatement5(JavaParser.Statement5Context ctx) {
+		pushScope(); // enter do while
+		addConstraint(new ProgramFlowConstraint(ProgramFlowConstraint.Type.VariableTestDoWhile, ctx.parExpression()));
+	}
+
+	@Override
+	public void exitStatement5(JavaParser.Statement5Context ctx) {
+		popScope(); // exit do while
+	}
+
+	@Override
+	public void enterStatement3(JavaParser.Statement3Context ctx) {
+		pushScope(); // enter for loop
+		addConstraint(new ProgramFlowConstraint(ProgramFlowConstraint.Type.VariableTestFor, ctx.forControl()));
+	}
+
+	@Override
+	public void exitStatement3(JavaParser.Statement3Context ctx) {
+		popScope(); // exit for loop
 	}
 }

@@ -9,6 +9,9 @@ public class ProgramFlowConstraint {
 	enum Type {
 		VariableSource,
 		VariablesTest,
+		VariableTestWhile,
+		VariableTestFor,
+		VariableTestDoWhile,
 		Goal
 	}
 

@@ -134,9 +134,6 @@ public class SilverBackend {
 			try {
 				for (ViperError<Origin> error : errors) {
 					TestGenerationUtil.logTestFor(error);
-					if (TestGenerationUtil.getGenerationType(error) == TestGenerationType.RETURN_CAN_BE_NULL) {
-						Output("Should generate RETURN_CAN_BE_NULL test.");
-					}
 				}
 			} catch (Error e) {
 				DebugException(e);

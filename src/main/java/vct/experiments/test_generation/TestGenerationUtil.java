@@ -83,9 +83,11 @@ public class TestGenerationUtil {
 		// In theory this is always true from the helper, but it's a good check to do.
 		if (goal.type != ProgramFlowConstraint.Type.Goal) return;
 
+		var method = getSurroundingMethod(goal);
+
 		StringBuilder code = new StringBuilder();
 		int index = 0;
-		for (var param : getParams(getSurroundingMethod(goal))) {
+		for (var param : getParams(method)) {
 			code.append(getType(param))
 					.append(" ")
 					.append("param")
@@ -98,10 +100,16 @@ public class TestGenerationUtil {
 
 		// if requirements of static vars {setup}
 
-		code.append(getCallCode(constraints));
-		code.append("// Above will be null. But there is a postcondition that claims it is not. \n");
+		if (!isStatic(method)) {
+			code.append(getNewInstanceCode(getSurroundingClass(goal)));
+		}
 
-		Output("Start of generated code:\n%s\nEnd of generated code.", code);
+		code.append(getCallCode(constraints));
+		code.append("// Above will be null. But there is a postcondition that claims it is not.");
+
+		Output("Start of generated code:");
+		Output(code.toString());
+		Output("End of generated code.");
 	}
 
 
@@ -114,6 +122,9 @@ public class TestGenerationUtil {
 		if (isStatic(method)) {
 			baseText.append(getClassName(getSurroundingClass(method)))
 			.append(".");
+		} else {
+			// In reality we should probably check if this is not an existing global var.
+			baseText.append("instance.");
 		}
 		baseText.append(getMethodName(method)).append("(");
 		var params = getParams(method);
@@ -130,6 +141,14 @@ public class TestGenerationUtil {
 										.append(params.size() - 1)
 										.append(");\n")
 										.toString();
+	}
+
+	/**
+	 * @param ctx Assumed that this class has the default constructor
+	 * @return ends in newline, name of instance is "instance"
+	 */
+	public static String getNewInstanceCode(JavaParser.ClassBodyContext ctx) {
+		return String.format("%s instance = new %s();\n", getClassName(ctx), getClassName(ctx));
 	}
 
 	/**

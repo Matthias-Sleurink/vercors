@@ -102,6 +102,14 @@ public class TestGenerationUtil {
 
 		if (!isStatic(method)) {
 			code.append(getNewInstanceCode(getSurroundingClass(goal)));
+			for (var instancevar : getInstanceVariables(constraints)) {
+				code.append("instance")
+						.append(".")
+						.append(getName(instancevar))
+						.append(" = ")
+						.append("getValueInitializer(instancevar, getRequiredValue(instancevar, constraints))")
+						.append(";\n");
+			}
 		}
 
 		code.append(getCallCode(constraints));

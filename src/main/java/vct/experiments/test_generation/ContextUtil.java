@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Stack;
 
+import static vct.experiments.test_generation.ConstraintUtil.getSurroundingClass;
+
 public class ContextUtil {
 
 	/**
@@ -172,8 +174,16 @@ public class ContextUtil {
 		}
 	}
 
+	// TODO: constr.constrains impl does not work yet
 	public static boolean hasNoDirectRequirements(JavaParser.FormalParameterContext param, Stack<List<ProgramFlowConstraint>> constraints) {
-		return true; // TODO: Will work on this tomorrow
+//		for (List<ProgramFlowConstraint> scope : constraints) {
+//			for (ProgramFlowConstraint constr : scope) {
+//				if (constr.constrains(param)) {
+//					return false;
+//				}
+//			}
+//		}
+		return true;
 	}
 
 	public static Object getDefaultValueForType(String type) {
@@ -255,8 +265,55 @@ public class ContextUtil {
 			return getName((JavaParser.Statement11Context) context);
 		} else if (context instanceof JavaParser.FormalParameter0Context) {
 			return getName((JavaParser.FormalParameter0Context) context);
+		} else if (context instanceof JavaParser.VariableDeclarator0Context) {
+			return getName((JavaParser.VariableDeclaratorId0Context) ((JavaParser.VariableDeclarator0Context) context).variableDeclaratorId());
 		}
 
 		throw new NotImplementedError("Cannot get name for this object of type " + context.getClass().toString());
 	}
+
+	// TODO: We use a very ugly syntax for throwing on Parser change here. Make helper?
+	/**
+	 * @param ctx an expression, assumed to be of type `this.name`. Which is more specific than the type can portray.
+	 * @return null if none, else the varDeclCtx with the same name as the name in `this.name` for the input.
+	 */
+	public static JavaParser.VariableDeclaratorContext getInstanceDecl(JavaParser.Expression2Context ctx) {
+		var klass = getSurroundingClass(ctx);
+
+		if (!( klass instanceof JavaParser.ClassBody0Context)) throw new IllegalStateException("Java Parser changed surrounding the ClassBodyContext.");
+
+		var body = ((JavaParser.ClassBody0Context) klass).classBodyDeclaration();
+		var varname = getName(ctx.javaIdentifier());
+
+		for (JavaParser.ClassBodyDeclarationContext bodyDeclarationContext : body) {
+			if (!(bodyDeclarationContext instanceof JavaParser.ClassBodyDeclaration2Context)) {
+				continue;
+			}
+			// We are a member decl
+			var memberdecl = ((JavaParser.ClassBodyDeclaration2Context) bodyDeclarationContext).memberDeclaration();
+			if (!(memberdecl instanceof JavaParser.MemberDeclaration2Context)) {
+				continue;
+			}
+			var fieldDecl = ((JavaParser.MemberDeclaration2Context) memberdecl).fieldDeclaration();
+			if (!(fieldDecl instanceof JavaParser.FieldDeclaration0Context)) throw new IllegalStateException("Java Parser changed surrounding the FieldDeclarationContext.");
+
+			var vars = ((JavaParser.FieldDeclaration0Context) fieldDecl).variableDeclarators();
+			if (!(vars instanceof JavaParser.VariableDeclarators0Context)) throw new NotImplementedError("No support for comma separated field decls.");
+
+			var declarated = ((JavaParser.VariableDeclarators0Context) vars).variableDeclarator();
+			if (!(declarated instanceof JavaParser.VariableDeclarator0Context)) throw new IllegalStateException("Java Parser changed surrounding the VariableDeclaratorContext.");
+
+			var declid = ((JavaParser.VariableDeclarator0Context) declarated).variableDeclaratorId();
+			if (!(declid instanceof JavaParser.VariableDeclaratorId0Context)) throw new IllegalStateException("Java Parser changed surrounding the VariableDeclaratorId0Context.");
+
+			var declName = getName((JavaParser.VariableDeclaratorId0Context) declid);
+
+			if (Objects.equals(varname, declName)) {
+				return declarated;
+			}
+
+		}
+		return null;
+	}
+
 }

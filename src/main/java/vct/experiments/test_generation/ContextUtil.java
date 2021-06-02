@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Stack;
 
 import static vct.experiments.test_generation.ConstraintUtil.getSurroundingClass;
+import static vct.experiments.test_generation.TestGenerationUtil.throwForChangedParser;
 
 public class ContextUtil {
 
@@ -118,19 +119,48 @@ public class ContextUtil {
 		//    param and null
 	}
 
+	public static String getType(ParserRuleContext context) {
+		if (context instanceof JavaParser.FormalParameterContext) {
+			return getType((JavaParser.FormalParameterContext) context);
+		} else if (context instanceof JavaParser.VariableDeclaratorContext) {
+			return getType((JavaParser.VariableDeclaratorContext) context);
+		}
+
+		throw new IllegalStateException("Unsupported GetType call for parserRuleContext of type " + context.getClass());
+	}
+
+	public static String getType(JavaParser.VariableDeclaratorContext context) {
+		if (!(context instanceof JavaParser.VariableDeclarator0Context)) throwForChangedParser(context);
+
+		var declarators = context.getParent();
+		if (!(declarators instanceof JavaParser.VariableDeclaratorsContext)) throwForChangedParser(declarators);
+
+		var fieldDeclOrLocalDecl = declarators.getParent();
+
+		// Both fieldDecl and LocalDecl have the type in them.
+
+		var typeCtx = fieldDeclOrLocalDecl.getRuleContext(JavaParser.TypeContext.class,0);
+		if (typeCtx == null) throwForChangedParser(fieldDeclOrLocalDecl);
+
+		return getType(typeCtx);
+	}
+
 	public static String getType(JavaParser.FormalParameterContext parameterContext) {
 		if (!(parameterContext instanceof JavaParser.FormalParameter0Context)) {
 			return "INVALID_FORMAL_PARAM_CONTEXT_NO_TYPE_EXTRACTABLE";
 		}
-
 		var typeContext = ((JavaParser.FormalParameter0Context) parameterContext).type();
 
-		if (!(typeContext instanceof JavaParser.Type2Context)) {
+		return getType(typeContext);
+	}
+
+	public static String getType(JavaParser.TypeContext context) {
+		if (!(context instanceof JavaParser.Type2Context)) {
 			throw new NotImplementedError("Cannot parse type of Formal Parameter, is not a primitive.");
 		}
 
-		String type = ((JavaParser.Type2Context) typeContext).primitiveType().getText();
-		var dimsctx = ((JavaParser.Type2Context) typeContext).dims();
+		String type = ((JavaParser.Type2Context) context).primitiveType().getText();
+		var dimsctx = ((JavaParser.Type2Context) context).dims();
 		if (dimsctx == null) {
 			return type; // No dimensioncontext mean not an array.
 		}
@@ -159,23 +189,24 @@ public class ContextUtil {
 		throw new NotImplementedError(String.format("No way of getting value init for param %s and value %s.", param, requiredValue));
 	}
 
-	public static Object getRequiredValue(JavaParser.FormalParameterContext param,
+	public static Object getRequiredValue(String paramName,
+	                                      ParserRuleContext param,
 	                                      Stack<List<ProgramFlowConstraint>> constraints) {
-		if (isGoal(param, constraints)) {
-			if (hasNoDirectRequirements(param, constraints)) {
+		if (isGoal(paramName, constraints)) {
+			if (hasNoDirectRequirements(paramName, constraints)) {
 				return null; // For now we hardcode this
 			}
 			// TODO: the case where the only requirements are null
 			throw new NotImplementedError("Cannot get required value for goal that must be null but also has other requirements.");
-		} else if (hasNoDirectRequirements(param, constraints)) {
+		} else if (hasNoDirectRequirements(paramName, constraints)) {
 			return getDefaultValueForType(getType(param));
 		} else {
 			throw new NotImplementedError("Only made support from reqValue of goal for now.");
 		}
 	}
 
-	// TODO: constr.constrains impl does not work yet
-	public static boolean hasNoDirectRequirements(JavaParser.FormalParameterContext param, Stack<List<ProgramFlowConstraint>> constraints) {
+		// TODO: constr.constrains impl does not work yet
+	public static boolean hasNoDirectRequirements(String param, Stack<List<ProgramFlowConstraint>> constraints) {
 //		for (List<ProgramFlowConstraint> scope : constraints) {
 //			for (ProgramFlowConstraint constr : scope) {
 //				if (constr.constrains(param)) {
@@ -211,14 +242,13 @@ public class ContextUtil {
 		};
 	}
 
-	public static boolean isGoal(JavaParser.FormalParameterContext param, Stack<List<ProgramFlowConstraint>> constraints) {
+	public static boolean isGoal(String varName, Stack<List<ProgramFlowConstraint>> constraints) {
 		var actualGoal = ConstraintUtil.getGoal(constraints);
 
 		var goalVarName = getName(actualGoal.context);
-		var paramName = getName(param);
 
 		// Since java has unique local variable names we can just compare these and ignore scopes.
-		return Objects.equals(goalVarName, paramName);
+		return Objects.equals(goalVarName, varName);
 	}
 
 	public static String getName(JavaParser.Statement11Context context) {

@@ -93,7 +93,7 @@ public class TestGenerationUtil {
 					.append("param")
 					.append(index)
 					.append(" = ")
-					.append(getValueInitializer(param, getRequiredValue(getName(param), param, constraints)))
+					.append(getValueInitializer(getRequiredValue(getName(param), param, constraints)))
 					.append(";\n");
 			index++;
 		}
@@ -107,7 +107,7 @@ public class TestGenerationUtil {
 						.append(".")
 						.append(getName(instancevar))
 						.append(" = ")
-						.append("getValueInitializer(instancevar, " + Objects.toString(getRequiredValue(getName(instancevar), instancevar, constraints))+ ")")
+						.append(getValueInitializer(getRequiredValue(getName(instancevar), instancevar, constraints)))
 						.append(";\n");
 			}
 		}

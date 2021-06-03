@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Stack;
 
 import static vct.experiments.test_generation.ConstraintUtil.getSurroundingClass;
+import static vct.experiments.test_generation.ProgramFlowRequirement.makeRequirement;
 import static vct.experiments.test_generation.TestGenerationUtil.throwForChangedParser;
 
 public class ContextUtil {
@@ -167,7 +168,7 @@ public class ContextUtil {
 		return type + dimsctx.getText();
 	}
 
-	public static String getValueInitializer(JavaParser.FormalParameterContext param, Object requiredValue) {
+	public static String getValueInitializer(Object requiredValue) {
 		if (requiredValue == null) {
 			return "null";
 		} else if (requiredValue instanceof Boolean ||
@@ -186,7 +187,7 @@ public class ContextUtil {
 		}
 		// This may just be out of scope.
 		//  There are loads of things that do this, they are all huge. (Think frameworks like Spring etc.)
-		throw new NotImplementedError(String.format("No way of getting value init for param %s and value %s.", param, requiredValue));
+		throw new NotImplementedError(String.format("No way of getting value init for value %s.", requiredValue));
 	}
 
 	public static Object getRequiredValue(String paramName,
@@ -201,20 +202,32 @@ public class ContextUtil {
 		} else if (hasNoDirectRequirements(paramName, constraints)) {
 			return getDefaultValueForType(getType(param));
 		} else {
-			throw new NotImplementedError("Only made support from reqValue of goal for now.");
+			var requirements = getRequirements(paramName, constraints);
+			if (requirements.size() == 1) {
+				return requirements.get(0).makeValue();
+			} else {
+				throw new NotImplementedError("We don't support variables with more than one constraint yet. (name: " + paramName + ")");
+			}
 		}
 	}
 
-		// TODO: constr.constrains impl does not work yet
-	public static boolean hasNoDirectRequirements(String param, Stack<List<ProgramFlowConstraint>> constraints) {
-//		for (List<ProgramFlowConstraint> scope : constraints) {
-//			for (ProgramFlowConstraint constr : scope) {
-//				if (constr.constrains(param)) {
-//					return false;
-//				}
-//			}
-//		}
-		return true;
+	public static List<ProgramFlowRequirement> getRequirements(String varName, Stack<List<ProgramFlowConstraint>> constraints) {
+		List<ProgramFlowRequirement> result = new ArrayList<>();
+		for (List<ProgramFlowConstraint> scope : constraints) {
+			for (ProgramFlowConstraint constr : scope) {
+				var req = makeRequirement(constr);
+				if (req != null && req.constrains(varName)) {
+					result.add(req);
+				}
+
+			}
+		}
+		return result;
+	}
+
+
+	public static boolean hasNoDirectRequirements(String varName, Stack<List<ProgramFlowConstraint>> constraints) {
+		return getRequirements(varName, constraints).isEmpty();
 	}
 
 	public static Object getDefaultValueForType(String type) {
@@ -297,6 +310,8 @@ public class ContextUtil {
 			return getName((JavaParser.FormalParameter0Context) context);
 		} else if (context instanceof JavaParser.VariableDeclarator0Context) {
 			return getName((JavaParser.VariableDeclaratorId0Context) ((JavaParser.VariableDeclarator0Context) context).variableDeclaratorId());
+		} else if (context instanceof JavaParser.Primary1Context) {
+			return ((JavaParser.Primary1Context) context).THIS().getText().strip();
 		}
 
 		throw new NotImplementedError("Cannot get name for this object of type " + context.getClass().toString());

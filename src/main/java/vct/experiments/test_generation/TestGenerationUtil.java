@@ -61,27 +61,33 @@ public class TestGenerationUtil {
 		}
 
 		var compilationUnit = parser.compilationUnit();
-		Output("Tree: %s", compilationUnit.toStringTree(parser));
 		var reqStack = getRequirementsFor(fileOrigin.getFirstLine(), fileOrigin.getFirstColumn(), compilationUnit);
 		if (reqStack == null) {
 			Output("Was not able to generate requirements for ViperError for RETURN_CAN_BE_NULL test case.");
 			return;
 		}
 
-		for (var reqList : reqStack){
-			for (var constraint : reqList) {
-				Output(constraint.repr(parser));
-			}
-		}
+//		for (var reqList : reqStack) {
+//			for (var constraint : reqList) {
+//				Output(constraint.repr(parser));
+//			}
+//		}
 
-		getCodeThatSatisfies(reqStack, compilationUnit);
+		var code = getCodeThatSatisfies(reqStack, compilationUnit);
+
+		if (code != null) {
+			Output("Generated counterexample for the issue shown below:");
+			Output(code);
+		} else {
+			Debug("Was not able to generate code for counterexample.");
+		}
 
 	}
 
-	private static void getCodeThatSatisfies(Stack<List<ProgramFlowConstraint>> constraints, JavaParser.CompilationUnitContext file) {
+	private static String getCodeThatSatisfies(Stack<List<ProgramFlowConstraint>> constraints, JavaParser.CompilationUnitContext file) {
 		var goal = constraints.peek().get(constraints.peek().size() - 1);
 		// In theory this is always true from the helper, but it's a good check to do.
-		if (goal.type != ProgramFlowConstraint.Type.Goal) return;
+		if (goal.type != ProgramFlowConstraint.Type.Goal) return null;
 
 		var method = getSurroundingMethod(goal);
 
@@ -115,9 +121,7 @@ public class TestGenerationUtil {
 		code.append(getCallCode(constraints));
 		code.append("// Above will be null. But there is a postcondition that claims it is not.");
 
-		Output("Start of generated code:");
-		Output(code.toString());
-		Output("End of generated code.");
+		return code.toString();
 	}
 
 

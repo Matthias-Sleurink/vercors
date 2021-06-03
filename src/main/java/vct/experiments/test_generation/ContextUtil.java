@@ -272,16 +272,23 @@ public class ContextUtil {
 	}
 
 	public static String getName(JavaParser.ExpressionContext context) {
-		if (!(context instanceof JavaParser.Expression1Context)) {
-			throw new NotImplementedError("Can only get name from bare expressions");
-		}
-		var prim = ((JavaParser.Expression1Context) context).primary();
+		if (context instanceof JavaParser.Expression1Context) {
+			var prim = ((JavaParser.Expression1Context) context).primary();
 
-		if (!(prim instanceof JavaParser.Primary4Context)) {
-			throw new NotImplementedError("Can only get name from bare name Primary context");
-		}
+			if (!(prim instanceof JavaParser.Primary4Context)) {
+				throw new NotImplementedError("Can only get name from bare name Primary context");
+			}
 
-		return getName(((JavaParser.Primary4Context) prim).javaIdentifier());
+			return getName(((JavaParser.Primary4Context) prim).javaIdentifier());
+		} else if (context instanceof JavaParser.Expression2Context) {
+			if (((JavaParser.Expression2Context) context).expression() instanceof JavaParser.Expression1Context &&
+					((JavaParser.Expression1Context) ((JavaParser.Expression2Context) context).expression()).primary() instanceof JavaParser.Primary1Context
+			) {
+					// This is of shape "this.NAME".
+				return getName(((JavaParser.Expression2Context) context).javaIdentifier());
+			}
+		}
+		throw new NotImplementedError("Can only get name from bare and this.NAME expressions. Not from: " + context.getClass());
 	}
 
 	public static String getName(JavaParser.JavaIdentifierContext context) {

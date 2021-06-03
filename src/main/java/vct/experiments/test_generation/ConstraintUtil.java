@@ -90,7 +90,8 @@ public class ConstraintUtil {
 			if (((JavaParser.ParExpression0Context) ctx).expression() instanceof JavaParser.Expression2Context) {
 				instanceDecl = (JavaParser.Expression2Context) ((JavaParser.ParExpression0Context) ctx).expression();
 			} else {
-				throw new NotImplementedError("Cannot drill down deeper into expressions to find `this.name` expressions yet.");
+				throw new NotImplementedError("Cannot drill down deeper into expressions to find `this.name` expressions yet. Got: "
+						+ ((JavaParser.ParExpression0Context) ctx).expression().getClass());
 			}
 		} else if (ctx instanceof JavaParser.ForControl0Context) {
 			// Enhanced for

@@ -74,10 +74,17 @@ public class TestGenerationUtil {
 //		}
 
 		var code = getCodeThatSatisfies(reqStack, compilationUnit);
-
+		// Formatted code is uses two spaces for indents, as that is what vercors uses.
 		if (code != null) {
 			Output("Generated counterexample for the issue shown below:");
-			Output(code);
+			var codeFormatted = new StringBuilder("class MainCounterexample {\n");
+			codeFormatted.append("  public static void main(String[] args) {\n");
+			for (var line : code.split("\n")) {
+				codeFormatted.append("    ").append(line).append("\n"); // newlines are removed in the split
+			}
+			codeFormatted.append("  }\n");
+			codeFormatted.append("}");
+			Output(codeFormatted.toString());
 		} else {
 			Debug("Was not able to generate code for counterexample.");
 		}
